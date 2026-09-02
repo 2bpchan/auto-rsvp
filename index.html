@@ -57,6 +57,11 @@
             --text-secondary: #888888;
             --focus-point: #ef4444;
             --font-family: 'Inter', sans-serif;
+            /* Where the pivot letter sits within the word display, as a % from
+               the left. Kept well left of center because the ORP algorithm
+               below caps the left-hand portion at 4 characters, so the right
+               side is almost always the longer (and growing) side. */
+            --orp-pivot-position: 32%;
         }
         
         body {
@@ -85,17 +90,18 @@
             user-select: none;
             position: relative;
             white-space: nowrap;
+            transform-origin: var(--orp-pivot-position) center;
         }
 
-        .orp-left { text-align: right; width: 50%; padding-right: 2px; color: var(--text-secondary); }
-        .orp-pivot { color: var(--focus-point); width: auto; text-align: center; transform: scale(1.05); }
-        .orp-right { text-align: left; width: 50%; padding-left: 2px; color: var(--text-secondary); }
+        .orp-left { text-align: right; width: var(--orp-pivot-position); padding-right: 2px; color: var(--text-secondary); }
+        .orp-pivot { color: var(--focus-point); width: auto; text-align: center; transform: scale(1.05); flex-shrink: 0; }
+        .orp-right { text-align: left; width: calc(100% - var(--orp-pivot-position)); padding-left: 2px; color: var(--text-secondary); }
 
         /* Focus Guides */
         .guide-lines::before, .guide-lines::after {
             content: '';
             position: absolute;
-            left: 50%;
+            left: var(--orp-pivot-position);
             transform: translateX(-50%);
             width: 2px;
             height: 12px;
@@ -233,16 +239,24 @@
                 </div>
 
                 <!-- Playback Controls -->
-                <div class="flex items-center gap-6 order-1 md:order-2">
-                    <button onclick="seek(-10)" class="theme-text-sec hover:text-[var(--text-main)] p-3 rounded-full hover:bg-[var(--bg-color)] transition-all">
+                <div class="flex items-center gap-3 md:gap-4 order-1 md:order-2">
+                    <button onclick="seek(-10)" class="theme-text-sec hover:text-[var(--text-main)] p-3 rounded-full hover:bg-[var(--bg-color)] transition-all" title="Back 10 words">
                         <i data-lucide="rewind" class="w-6 h-6"></i>
                     </button>
-                    
+
+                    <button onclick="seek(-1)" class="theme-text-sec hover:text-[var(--text-main)] p-2 rounded-full hover:bg-[var(--bg-color)] transition-all" title="Previous word (&lt;)">
+                        <i data-lucide="chevron-left" class="w-5 h-5"></i>
+                    </button>
+
                     <button id="play-btn" onclick="togglePlay()" class="bg-[var(--text-main)] text-[var(--bg-color)] p-4 rounded-full hover:scale-105 active:scale-95 transition-all shadow-lg flex items-center justify-center">
                         <!-- Icons inserted by JS -->
                     </button>
 
-                    <button onclick="seek(10)" class="theme-text-sec hover:text-[var(--text-main)] p-3 rounded-full hover:bg-[var(--bg-color)] transition-all">
+                    <button onclick="seek(1)" class="theme-text-sec hover:text-[var(--text-main)] p-2 rounded-full hover:bg-[var(--bg-color)] transition-all" title="Next word (&gt;)">
+                        <i data-lucide="chevron-right" class="w-5 h-5"></i>
+                    </button>
+
+                    <button onclick="seek(10)" class="theme-text-sec hover:text-[var(--text-main)] p-3 rounded-full hover:bg-[var(--bg-color)] transition-all" title="Forward 10 words">
                         <i data-lucide="fast-forward" class="w-6 h-6"></i>
                     </button>
                 </div>
@@ -280,6 +294,12 @@
                     <div class="space-y-2">
                         <label class="text-xs theme-text-sec uppercase tracking-wider">Default Speed (WPM)</label>
                         <input type="number" id="setting-wpm" class="w-full theme-bg border theme-border rounded p-2 theme-text-main focus:border-[var(--text-main)] outline-none" value="300">
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="text-xs theme-text-sec uppercase tracking-wider">Slowdown for Non-Letter Words (%)</label>
+                        <input type="number" id="setting-nonalpha-slowdown" class="w-full theme-bg border theme-border rounded p-2 theme-text-main focus:border-[var(--text-main)] outline-none" value="50" min="0" max="500">
+                        <p class="text-[10px] theme-text-sec">Extra display time for words containing anything other than A-Z, e.g. hyphenated words or file paths.</p>
                     </div>
 
                     <!-- Themes -->
@@ -348,8 +368,12 @@
             intervalId: null,
             currentLibraryId: null,
             currentTheme: 'midnight',
-            currentFont: 'inter'
+            currentFont: 'inter',
+            nonAlphaSlowdown: 50
         };
+
+        const MIN_WORD_SCALE = 0.4;
+        const ORP_PIVOT_FRACTION = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--orp-pivot-position')) / 100;
 
         const els = {
             textInput: document.getElementById('text-input'),
@@ -372,6 +396,8 @@
             libraryList: document.getElementById('library-list'),
             settingsModal: document.getElementById('settings-modal'),
             settingWpm: document.getElementById('setting-wpm'),
+            settingNonAlphaSlowdown: document.getElementById('setting-nonalpha-slowdown'),
+            orpContainer: document.querySelector('.orp-container'),
             bookmarkBtn: document.getElementById('bookmark-btn'),
             bookmarkToast: document.getElementById('bookmark-toast'),
             themeGrid: document.getElementById('theme-grid'),
@@ -384,10 +410,15 @@
             const savedWpm = localStorage.getItem('rvsp_default_wpm');
             const savedTheme = localStorage.getItem('rvsp_theme');
             const savedFont = localStorage.getItem('rvsp_font');
+            const savedNonAlphaSlowdown = localStorage.getItem('rvsp_nonalpha_slowdown');
 
             if (savedWpm) {
                 state.wpm = parseInt(savedWpm);
                 els.settingWpm.value = savedWpm;
+            }
+            if (savedNonAlphaSlowdown !== null) {
+                state.nonAlphaSlowdown = parseInt(savedNonAlphaSlowdown);
+                els.settingNonAlphaSlowdown.value = savedNonAlphaSlowdown;
             }
             if (savedTheme && themes[savedTheme]) applyTheme(savedTheme);
             if (savedFont && fonts[savedFont]) applyFont(savedFont);
@@ -645,10 +676,17 @@
             if (newWpm >= 100 && newWpm <= 2000) {
                 state.wpm = newWpm;
                 localStorage.setItem('rvsp_default_wpm', newWpm);
-                localStorage.setItem('rvsp_theme', state.currentTheme);
-                localStorage.setItem('rvsp_font', state.currentFont);
                 updateWpmUI();
             }
+
+            const newSlowdown = parseInt(els.settingNonAlphaSlowdown.value);
+            if (newSlowdown >= 0 && newSlowdown <= 500) {
+                state.nonAlphaSlowdown = newSlowdown;
+                localStorage.setItem('rvsp_nonalpha_slowdown', newSlowdown);
+            }
+
+            localStorage.setItem('rvsp_theme', state.currentTheme);
+            localStorage.setItem('rvsp_font', state.currentFont);
             toggleSettings();
         }
 
@@ -676,6 +714,44 @@
             els.wordLeft.textContent = word.substring(0, pivotIndex);
             els.wordPivot.textContent = word.substring(pivotIndex, pivotIndex + 1);
             els.wordRight.textContent = word.substring(pivotIndex + 1);
+            fitWordToStage();
+        }
+
+        // Shrinks long words (hyphenated compounds, file paths, URLs) so they
+        // stay on screen, scaling around the pivot letter so it doesn't move.
+        // The pivot sits well left of center (see --orp-pivot-position), so
+        // the space available to its left and right is asymmetric — scale is
+        // computed separately for each side and the more restrictive wins.
+        // Uses a Range over the rendered text rather than scrollWidth, since
+        // the left/right halves overflow their own boxes in both directions
+        // (left-aligned text overflows right, right-aligned text overflows
+        // left) and scrollWidth only ever captures rightward overflow.
+        function fitWordToStage() {
+            els.orpContainer.style.transform = 'none';
+            void els.orpContainer.offsetWidth; // force layout so the rects below reflect the reset transform
+
+            const stageRect = els.readerStage.getBoundingClientRect();
+            const containerRect = els.orpContainer.getBoundingClientRect();
+            const originX = containerRect.left + containerRect.width * ORP_PIVOT_FRACTION;
+
+            const range = document.createRange();
+            range.selectNodeContents(els.orpContainer);
+            const contentRect = range.getBoundingClientRect();
+
+            const buffer = 32;
+            const availableLeft = originX - stageRect.left - buffer;
+            const availableRight = stageRect.right - originX - buffer;
+            const neededLeft = originX - contentRect.left;
+            const neededRight = contentRect.right - originX;
+
+            let scale = 1;
+            if (neededLeft > availableLeft) scale = Math.min(scale, availableLeft / neededLeft);
+            if (neededRight > availableRight) scale = Math.min(scale, availableRight / neededRight);
+            scale = Math.max(scale, MIN_WORD_SCALE);
+
+            if (scale < 1) {
+                els.orpContainer.style.transform = `scale(${scale})`;
+            }
         }
 
         function tick() {
@@ -693,6 +769,7 @@
             const currentWord = state.words[state.currentIndex];
             if (/[.,;!?]$/.test(currentWord)) delay *= 1.5;
             if (currentWord.length > 10) delay *= 1.2;
+            if (/[^A-Za-z]/.test(currentWord)) delay *= (1 + state.nonAlphaSlowdown / 100);
 
             state.currentIndex++;
             state.intervalId = setTimeout(tick, delay);
@@ -842,6 +919,9 @@
         document.addEventListener('keydown', (e) => {
             if (els.viewReader.style.opacity === '0') return;
 
+            if (e.key === '<') { e.preventDefault(); seek(-1); return; }
+            if (e.key === '>') { e.preventDefault(); seek(1); return; }
+
             switch(e.code) {
                 case 'Space': e.preventDefault(); togglePlay(); break;
                 case 'ArrowUp': e.preventDefault(); adjustSpeed(10); break;
@@ -849,7 +929,7 @@
                 case 'ArrowLeft': e.preventDefault(); seek(-10); break;
                 case 'ArrowRight': e.preventDefault(); seek(10); break;
                 case 'Escape': exitReader(); break;
-                case 'KeyB': saveBookmark(); break; 
+                case 'KeyB': saveBookmark(); break;
             }
         });
 

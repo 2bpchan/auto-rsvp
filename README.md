@@ -61,7 +61,8 @@ Unlike traditional reading where your eyes move across lines of text, _rvsp_ pre
 - **Advanced RSVP Engine** - Scientifically optimized word presentation
 - **Optimal Recognition Point (ORP)** - Intelligent character-level focus highlighting
 - **Adjustable Reading Speed** - 100-1000 WPM with 10 WPM increments
-- **Adaptive Pacing** - Automatic delay adjustments for punctuation and long words
+- **Adaptive Pacing** - Automatic delay adjustments for punctuation, long words, and words containing non-letter characters (hyphens, slashes, digits) — the slowdown percentage is configurable in Settings
+- **Smart Word Fitting** - Long hyphenated words and file paths shrink to fit on screen instead of getting clipped, without moving the focus letter
 - **Real-time Speed Control** - Adjust WPM on the fly without interrupting reading
 
 ### Content Management
@@ -83,7 +84,7 @@ Unlike traditional reading where your eyes move across lines of text, _rvsp_ pre
 ### Power User Tools
 - **Comprehensive Keyboard Shortcuts** - Complete keyboard navigation
 - **Seekable Progress Bar** - Jump to any position with a click
-- **Quick Skip Controls** - Jump forward/backward by 10 words
+- **Quick Skip Controls** - Jump forward/backward by 10 words, or one word at a time
 - **Speed Presets** - Quickly adjust reading speed with +/- controls
 - **Demo Content** - Built-in example text to test the app
 
@@ -266,6 +267,8 @@ Master these shortcuts for a seamless reading experience:
 | `↓` | Decrease speed (-10 WPM) |
 | `←` | Skip backward 10 words |
 | `→` | Skip forward 10 words |
+| `<` | Previous word |
+| `>` | Next word |
 | `B` | Save bookmark |
 | `Esc` | Exit reader mode |
 
