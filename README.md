@@ -10,3 +10,4 @@ This is a fork of [Eeman1113/_rvsp_](https://github.com/Eeman1113/_rvsp_), an RS
 - **Single-word stepping** - previous/next word buttons and `<`/`>` keyboard shortcuts, in addition to the existing 10-word skip
 - **Word size setting** - adjustable reader text size (50-200%)
 - **Sentence navigation** - the rewind/left-arrow control jumps to the start of the current sentence (press again for the previous sentence); the fast-forward/right-arrow control plays at normal speed until the end of the current sentence, then pauses
+- **Enclosing punctuation in the margins** - when the current word is inside parentheses, brackets, braces, angle brackets, quotes, or asterisks, the wrapping characters are stripped from the word and shown in the left/right margins instead, nested outermost-first, so they don't clutter the word itself. Supports multiple simultaneous/nested levels

@@ -110,6 +110,24 @@
         .orp-pivot { color: var(--focus-point); width: auto; text-align: center; transform: scale(1.05); flex-shrink: 0; }
         .orp-right { text-align: left; width: calc(100% - var(--orp-pivot-position)); padding-left: 2px; color: var(--text-secondary); }
 
+        /* Wrapper Margins - shows enclosing punctuation (parens, quotes, etc)
+           the current word is nested inside, outermost pair furthest out. */
+        .wrapper-margin {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: calc(1.75rem * var(--word-font-scale));
+            opacity: 0.5;
+            letter-spacing: 0.15em;
+            white-space: nowrap;
+            user-select: none;
+            pointer-events: none;
+        }
+        .wrapper-margin-left { left: 1.5rem; text-align: right; }
+        .wrapper-margin-right { right: 1.5rem; text-align: left; }
+
         /* Slider Styling */
         input[type=range] { -webkit-appearance: none; background: transparent; }
         input[type=range]::-webkit-slider-thumb {
@@ -212,13 +230,17 @@
 
             <!-- THE STAGE -->
             <div class="flex-1 flex flex-col items-center justify-center relative select-none cursor-pointer overflow-hidden" id="reader-stage">
+                <!-- Enclosing wrapper marks (parens/brackets/quotes/etc the current word is nested inside) -->
+                <div id="wrapper-left" class="wrapper-margin wrapper-margin-left"></div>
+                <div id="wrapper-right" class="wrapper-margin wrapper-margin-right"></div>
+
                 <!-- Word Display -->
                 <div class="orp-container w-full max-w-5xl px-4">
                     <span class="orp-left" id="word-left">Wait</span>
                     <span class="orp-pivot" id="word-pivot">i</span>
                     <span class="orp-right" id="word-right">ng...</span>
                 </div>
-                
+
                  <div id="bookmark-toast" class="absolute mt-32 theme-surface border theme-border theme-text-main px-4 py-2 rounded-full text-xs opacity-0 transition-opacity duration-500">
                     Bookmark Saved
                 </div>
@@ -375,7 +397,8 @@
             currentTheme: 'midnight',
             currentFont: 'inter',
             nonAlphaSlowdown: 50,
-            fontSizeScale: 100
+            fontSizeScale: 100,
+            wrapperStacks: []
         };
 
         const MIN_WORD_SCALE = 0.4;
@@ -393,6 +416,8 @@
             wordLeft: document.getElementById('word-left'),
             wordPivot: document.getElementById('word-pivot'),
             wordRight: document.getElementById('word-right'),
+            wrapperLeft: document.getElementById('wrapper-left'),
+            wrapperRight: document.getElementById('wrapper-right'),
             progressBar: document.getElementById('progress-bar'),
             progressPercent: document.getElementById('progress-percent'),
             progressTime: document.getElementById('progress-time'),
@@ -596,7 +621,7 @@
             const item = library.find(i => i.id === id);
             if (!item) return;
 
-            state.words = item.content.split(/\s+/).filter(w => w.length > 0);
+            setWordsFromText(item.content);
             state.currentIndex = item.progress || 0;
             state.currentLibraryId = item.id;
             
@@ -721,6 +746,97 @@
 
         // --- Reader Core Logic ---
 
+        // Pair-based wrappers (open != close) can nest freely. Same-character
+        // wrappers (quotes, asterisks) toggle open/closed instead, and are
+        // only recognized within the leading/trailing run of wrapper
+        // punctuation at a word's edges (e.g. both chars in `*word*)` or
+        // `"(word)"` are still "edge" even though neither is the literal
+        // first/last character) — a mid-word `'` is almost always an
+        // apostrophe (e.g. "don't"), not a quote.
+        const WRAPPER_TYPES = [
+            { id: 'paren', open: '(', close: ')', sameChar: false },
+            { id: 'bracket', open: '[', close: ']', sameChar: false },
+            { id: 'brace', open: '{', close: '}', sameChar: false },
+            { id: 'angle', open: '<', close: '>', sameChar: false },
+            { id: 'dquote', open: '"', close: '"', sameChar: true },
+            { id: 'squote', open: '\'', close: '\'', sameChar: true },
+            { id: 'asterisk', open: '*', close: '*', sameChar: true }
+        ];
+        const WRAPPER_CHARS = new Set(WRAPPER_TYPES.flatMap(t => t.sameChar ? [t.open] : [t.open, t.close]));
+
+        // Scans whitespace-split words once, tracking a stack of currently-open
+        // wrapper types, so the reader can show them in the margins instead of
+        // leaving them cluttering the word. Returns the words with wrapper
+        // characters stripped out, plus each word's active wrapper stack
+        // (outermost first) for margin rendering.
+        function computeWrapperInfo(rawWords) {
+            const stack = [];
+            const openTypes = new Set();
+            const perWordActiveStack = [];
+            const strippedWords = [];
+
+            rawWords.forEach(word => {
+                const displayStack = stack.slice();
+                const kept = [];
+                const chars = word.split('');
+
+                let leadEnd = 0;
+                while (leadEnd < chars.length && WRAPPER_CHARS.has(chars[leadEnd])) leadEnd++;
+                let trailStart = chars.length;
+                while (trailStart > leadEnd && WRAPPER_CHARS.has(chars[trailStart - 1])) trailStart--;
+
+                chars.forEach((ch, pos) => {
+                    const isEdge = pos < leadEnd || pos >= trailStart;
+
+                    // "students'" - a trailing apostrophe right after an "s",
+                    // with no single-quote currently open, is almost always a
+                    // plural possessive rather than the start of a new quote.
+                    if (ch === '\'' && isEdge && !openTypes.has('squote') && /[sS]/.test(chars[pos - 1] || '')) {
+                        kept.push(ch);
+                        return;
+                    }
+
+                    const type = WRAPPER_TYPES.find(t => t.sameChar
+                        ? (t.open === ch && isEdge)
+                        : (t.open === ch || t.close === ch));
+
+                    if (!type) { kept.push(ch); return; }
+
+                    if (type.sameChar) {
+                        if (openTypes.has(type.id)) {
+                            openTypes.delete(type.id);
+                            const idx = stack.lastIndexOf(type.id);
+                            if (idx !== -1) stack.splice(idx, 1);
+                        } else {
+                            openTypes.add(type.id);
+                            stack.push(type.id);
+                            displayStack.push(type.id);
+                        }
+                    } else if (ch === type.open) {
+                        stack.push(type.id);
+                        displayStack.push(type.id);
+                    } else {
+                        const idx = stack.lastIndexOf(type.id);
+                        if (idx !== -1) stack.splice(idx, 1);
+                    }
+                });
+
+                perWordActiveStack.push(displayStack);
+                strippedWords.push(kept.join(''));
+            });
+
+            return { strippedWords, perWordActiveStack };
+        }
+
+        // Splits text into words and replaces state.words/state.wrapperStacks
+        // in one step, so the two always stay in sync.
+        function setWordsFromText(text) {
+            const rawWords = text.split(/\s+/).filter(w => w.length > 0);
+            const { strippedWords, perWordActiveStack } = computeWrapperInfo(rawWords);
+            state.words = strippedWords;
+            state.wrapperStacks = perWordActiveStack;
+        }
+
         function getPivotIndex(word) {
             const length = word.length;
             if (length === 1) return 0;
@@ -729,12 +845,25 @@
             return pivot;
         }
 
+        function renderWrapperMargins() {
+            const stack = state.wrapperStacks[state.currentIndex] || [];
+            let left = '', right = '';
+            stack.forEach(typeId => {
+                const type = WRAPPER_TYPES.find(t => t.id === typeId);
+                left += type.open;
+                right = type.close + right;
+            });
+            els.wrapperLeft.textContent = left;
+            els.wrapperRight.textContent = right;
+        }
+
         function renderWord(word) {
             if (!word) return;
             const pivotIndex = getPivotIndex(word);
             els.wordLeft.textContent = word.substring(0, pivotIndex);
             els.wordPivot.textContent = word.substring(pivotIndex, pivotIndex + 1);
             els.wordRight.textContent = word.substring(pivotIndex + 1);
+            renderWrapperMargins();
             fitWordToStage();
         }
 
@@ -920,8 +1049,8 @@
                 return;
             }
 
-            state.words = rawText.split(/\s+/).filter(w => w.length > 0);
-            
+            setWordsFromText(rawText);
+
             const currentLibContent = getLibrary().find(i => i.id === state.currentLibraryId)?.content;
             if (els.textInput.value !== currentLibContent) {
                  state.currentLibraryId = null;
