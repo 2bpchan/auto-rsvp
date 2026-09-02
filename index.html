@@ -393,10 +393,38 @@
             if (savedFont && fonts[savedFont]) applyFont(savedFont);
 
             updateWpmUI();
-            updatePlayButtonUI(); 
+            updatePlayButtonUI();
             renderLibraryList();
             renderSettingsUI();
+            loadFromURLParams();
         };
+
+        // Loads text/title from a #text=...&title=... hash (preferred for long
+        // content, since fragments are never sent to the server and so aren't
+        // subject to server request-line length limits) or a ?text=...&title=...
+        // query string.
+        function loadFromURLParams() {
+            try {
+                const hashParams = new URLSearchParams(location.hash.slice(1));
+                const queryParams = new URLSearchParams(location.search);
+                const text = hashParams.get('text') || queryParams.get('text');
+                const title = hashParams.get('title') || queryParams.get('title');
+
+                if (!text) return;
+
+                els.textInput.value = text;
+                if (title) els.titleInput.value = title;
+                updateWordCount();
+
+                const url = new URL(location.href);
+                url.searchParams.delete('text');
+                url.searchParams.delete('title');
+                url.hash = '';
+                history.replaceState(null, '', url.toString());
+            } catch (e) {
+                console.error('Failed to load text from URL', e);
+            }
+        }
 
         // --- Theme & Font Logic ---
 
