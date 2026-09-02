@@ -9,3 +9,4 @@ This is a fork of [Eeman1113/_rvsp_](https://github.com/Eeman1113/_rvsp_), an RS
 - **Non-letter word slowdown** - a configurable extra delay (default 50%) for words containing anything other than A-Z, e.g. hyphenated words or file paths
 - **Single-word stepping** - previous/next word buttons and `<`/`>` keyboard shortcuts, in addition to the existing 10-word skip
 - **Word size setting** - adjustable reader text size (50-200%)
+- **Sentence navigation** - the rewind/left-arrow control jumps to the start of the current sentence (press again for the previous sentence); the fast-forward/right-arrow control plays at normal speed until the end of the current sentence, then pauses

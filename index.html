@@ -239,7 +239,7 @@
 
                 <!-- Playback Controls -->
                 <div class="flex items-center gap-3 md:gap-4 order-1 md:order-2">
-                    <button onclick="seek(-10)" class="theme-text-sec hover:text-[var(--text-main)] p-3 rounded-full hover:bg-[var(--bg-color)] transition-all" title="Back 10 words">
+                    <button onclick="seekSentenceBack()" class="theme-text-sec hover:text-[var(--text-main)] p-3 rounded-full hover:bg-[var(--bg-color)] transition-all" title="Start of sentence (press again for previous sentence)">
                         <i data-lucide="rewind" class="w-6 h-6"></i>
                     </button>
 
@@ -255,7 +255,7 @@
                         <i data-lucide="chevron-right" class="w-5 h-5"></i>
                     </button>
 
-                    <button onclick="seek(10)" class="theme-text-sec hover:text-[var(--text-main)] p-3 rounded-full hover:bg-[var(--bg-color)] transition-all" title="Forward 10 words">
+                    <button onclick="playUntilSentenceEnd()" class="theme-text-sec hover:text-[var(--text-main)] p-3 rounded-full hover:bg-[var(--bg-color)] transition-all" title="Play to end of sentence">
                         <i data-lucide="fast-forward" class="w-6 h-6"></i>
                     </button>
                 </div>
@@ -370,6 +370,7 @@
             wpm: 300,
             isPlaying: false,
             intervalId: null,
+            stopAtSentenceEnd: false,
             currentLibraryId: null,
             currentTheme: 'midnight',
             currentFont: 'inter',
@@ -782,17 +783,23 @@
                 return;
             }
 
-            renderWord(state.words[state.currentIndex]);
-            updateProgress();
-            
-            let delay = 60000 / state.wpm;
             const currentWord = state.words[state.currentIndex];
+            renderWord(currentWord);
+            updateProgress();
+
+            let delay = 60000 / state.wpm;
             if (/[.,;!?]$/.test(currentWord)) delay *= 1.5;
             if (currentWord.length > 10) delay *= 1.2;
             if (/[^A-Za-z]/.test(currentWord)) delay *= (1 + state.nonAlphaSlowdown / 100);
 
             state.currentIndex++;
-            state.intervalId = setTimeout(tick, delay);
+
+            if (state.stopAtSentenceEnd && isSentenceEnd(currentWord)) {
+                state.stopAtSentenceEnd = false;
+                state.intervalId = setTimeout(pause, delay);
+            } else {
+                state.intervalId = setTimeout(tick, delay);
+            }
         }
 
         function togglePlay() {
@@ -809,6 +816,7 @@
 
         function pause() {
             state.isPlaying = false;
+            state.stopAtSentenceEnd = false;
             clearTimeout(state.intervalId);
             updatePlayButtonUI();
             if (state.currentLibraryId) saveBookmark();
@@ -824,6 +832,40 @@
             if (state.currentIndex < 0) state.currentIndex = 0;
             if (state.currentIndex >= state.words.length) state.currentIndex = state.words.length - 1;
             updateUI();
+        }
+
+        function isSentenceEnd(word) {
+            return /[.!?]$/.test(word);
+        }
+
+        // Index of the first word of the sentence that word `i` belongs to.
+        function sentenceStartIndex(i) {
+            let start = i;
+            while (start > 0 && !isSentenceEnd(state.words[start - 1])) start--;
+            return start;
+        }
+
+        // Jumps to the start of the current sentence. Pressing again while
+        // already sitting at a sentence start jumps to the previous sentence
+        // instead, matching typical "previous track" media player behavior.
+        function seekSentenceBack() {
+            if (state.words.length === 0) return;
+            pause();
+            const currentSentenceStart = sentenceStartIndex(state.currentIndex);
+            if (state.currentIndex === currentSentenceStart && currentSentenceStart > 0) {
+                state.currentIndex = sentenceStartIndex(currentSentenceStart - 1);
+            } else {
+                state.currentIndex = currentSentenceStart;
+            }
+            updateUI();
+        }
+
+        // Plays at normal speed until the end of the current sentence, then
+        // automatically pauses.
+        function playUntilSentenceEnd() {
+            if (state.words.length === 0) return;
+            state.stopAtSentenceEnd = true;
+            play();
         }
 
         function adjustSpeed(amount) {
@@ -946,8 +988,8 @@
                 case 'Space': e.preventDefault(); togglePlay(); break;
                 case 'ArrowUp': e.preventDefault(); adjustSpeed(10); break;
                 case 'ArrowDown': e.preventDefault(); adjustSpeed(-10); break;
-                case 'ArrowLeft': e.preventDefault(); seek(-10); break;
-                case 'ArrowRight': e.preventDefault(); seek(10); break;
+                case 'ArrowLeft': e.preventDefault(); seekSentenceBack(); break;
+                case 'ArrowRight': e.preventDefault(); playUntilSentenceEnd(); break;
                 case 'Escape': exitReader(); break;
                 case 'KeyB': saveBookmark(); break;
             }
