@@ -62,6 +62,7 @@
                below caps the left-hand portion at 4 characters, so the right
                side is almost always the longer (and growing) side. */
             --orp-pivot-position: 32%;
+            --word-font-scale: 1;
         }
         
         body {
@@ -91,25 +92,37 @@
             position: relative;
             white-space: nowrap;
             transform-origin: var(--orp-pivot-position) center;
+            /* Base sizes match the old text-4xl/sm:text-6xl/md:text-7xl/lg:text-8xl
+               Tailwind classes, scaled by the user's Word Size setting. */
+            font-size: calc(2.25rem * var(--word-font-scale));
+        }
+        @media (min-width: 640px) {
+            .orp-container { font-size: calc(3.75rem * var(--word-font-scale)); }
+        }
+        @media (min-width: 768px) {
+            .orp-container { font-size: calc(4.5rem * var(--word-font-scale)); }
+        }
+        @media (min-width: 1024px) {
+            .orp-container { font-size: calc(6rem * var(--word-font-scale)); }
         }
 
         .orp-left { text-align: right; width: var(--orp-pivot-position); padding-right: 2px; color: var(--text-secondary); }
         .orp-pivot { color: var(--focus-point); width: auto; text-align: center; transform: scale(1.05); flex-shrink: 0; }
         .orp-right { text-align: left; width: calc(100% - var(--orp-pivot-position)); padding-left: 2px; color: var(--text-secondary); }
 
-        /* Focus Guides */
+        /* Focus Guides - the "ironsight" bars marking where the pivot letter sits */
         .guide-lines::before, .guide-lines::after {
             content: '';
             position: absolute;
             left: var(--orp-pivot-position);
             transform: translateX(-50%);
-            width: 2px;
-            height: 12px;
-            background-color: var(--border-color);
+            width: 3px;
+            height: 16px;
+            background-color: var(--text-secondary);
             border-radius: 2px;
         }
-        .guide-lines::before { top: -20px; }
-        .guide-lines::after { bottom: -20px; }
+        .guide-lines::before { top: -22px; }
+        .guide-lines::after { bottom: -22px; }
 
         /* Slider Styling */
         input[type=range] { -webkit-appearance: none; background: transparent; }
@@ -214,7 +227,7 @@
             <!-- THE STAGE -->
             <div class="flex-1 flex flex-col items-center justify-center relative select-none cursor-pointer overflow-hidden" id="reader-stage">
                 <!-- Word Display -->
-                <div class="orp-container text-4xl sm:text-6xl md:text-7xl lg:text-8xl w-full max-w-5xl px-4 guide-lines">
+                <div class="orp-container w-full max-w-5xl px-4 guide-lines">
                     <span class="orp-left" id="word-left">Wait</span>
                     <span class="orp-pivot" id="word-pivot">i</span>
                     <span class="orp-right" id="word-right">ng...</span>
@@ -302,6 +315,11 @@
                         <p class="text-[10px] theme-text-sec">Extra display time for words containing anything other than A-Z, e.g. hyphenated words or file paths.</p>
                     </div>
 
+                    <div class="space-y-2">
+                        <label class="text-xs theme-text-sec uppercase tracking-wider">Word Size (%)</label>
+                        <input type="number" id="setting-font-size" class="w-full theme-bg border theme-border rounded p-2 theme-text-main focus:border-[var(--text-main)] outline-none" value="100" min="50" max="200" step="10">
+                    </div>
+
                     <!-- Themes -->
                     <div class="space-y-3">
                         <label class="text-xs theme-text-sec uppercase tracking-wider">Themes</label>
@@ -369,7 +387,8 @@
             currentLibraryId: null,
             currentTheme: 'midnight',
             currentFont: 'inter',
-            nonAlphaSlowdown: 50
+            nonAlphaSlowdown: 50,
+            fontSizeScale: 100
         };
 
         const MIN_WORD_SCALE = 0.4;
@@ -397,6 +416,7 @@
             settingsModal: document.getElementById('settings-modal'),
             settingWpm: document.getElementById('setting-wpm'),
             settingNonAlphaSlowdown: document.getElementById('setting-nonalpha-slowdown'),
+            settingFontSize: document.getElementById('setting-font-size'),
             orpContainer: document.querySelector('.orp-container'),
             bookmarkBtn: document.getElementById('bookmark-btn'),
             bookmarkToast: document.getElementById('bookmark-toast'),
@@ -411,6 +431,7 @@
             const savedTheme = localStorage.getItem('rvsp_theme');
             const savedFont = localStorage.getItem('rvsp_font');
             const savedNonAlphaSlowdown = localStorage.getItem('rvsp_nonalpha_slowdown');
+            const savedFontSize = localStorage.getItem('rvsp_font_size_scale');
 
             if (savedWpm) {
                 state.wpm = parseInt(savedWpm);
@@ -419,6 +440,11 @@
             if (savedNonAlphaSlowdown !== null) {
                 state.nonAlphaSlowdown = parseInt(savedNonAlphaSlowdown);
                 els.settingNonAlphaSlowdown.value = savedNonAlphaSlowdown;
+            }
+            if (savedFontSize !== null) {
+                state.fontSizeScale = parseInt(savedFontSize);
+                els.settingFontSize.value = savedFontSize;
+                document.documentElement.style.setProperty('--word-font-scale', state.fontSizeScale / 100);
             }
             if (savedTheme && themes[savedTheme]) applyTheme(savedTheme);
             if (savedFont && fonts[savedFont]) applyFont(savedFont);
@@ -683,6 +709,14 @@
             if (newSlowdown >= 0 && newSlowdown <= 500) {
                 state.nonAlphaSlowdown = newSlowdown;
                 localStorage.setItem('rvsp_nonalpha_slowdown', newSlowdown);
+            }
+
+            const newFontSize = parseInt(els.settingFontSize.value);
+            if (newFontSize >= 50 && newFontSize <= 200) {
+                state.fontSizeScale = newFontSize;
+                localStorage.setItem('rvsp_font_size_scale', newFontSize);
+                document.documentElement.style.setProperty('--word-font-scale', newFontSize / 100);
+                if (state.words[state.currentIndex]) renderWord(state.words[state.currentIndex]);
             }
 
             localStorage.setItem('rvsp_theme', state.currentTheme);

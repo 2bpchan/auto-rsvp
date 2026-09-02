@@ -80,6 +80,7 @@ Unlike traditional reading where your eyes move across lines of text, _rvsp_ pre
 - **Smooth Animations** - Polished transitions and micro-interactions
 - **Zero Distractions** - Fullscreen reading mode
 - **Themes & Fonts** - 10 built-in color themes and 4 font choices
+- **Word Size** - Adjustable text size (50-200%) in Settings
 
 ### Power User Tools
 - **Comprehensive Keyboard Shortcuts** - Complete keyboard navigation
