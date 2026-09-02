@@ -1,4 +1,4 @@
-# _rvsp_ - The Better Way to Read 🚀
+# _rvsp_ - The Better Way to Read
 
 <div align="center">
 
@@ -9,13 +9,13 @@
 
 **Experience reading at the speed of thought with advanced RSVP technology**
 
-[🌐 Live Demo](https://eeman1113.github.io/_rvsp_/) • [📖 Documentation](#features) • [🐛 Report Bug](#contributing) • [✨ Request Feature](#contributing)
+[Live Demo](https://eeman1113.github.io/_rvsp_/) • [Documentation](#features) • [Report Bug](#contributing) • [Request Feature](#contributing)
 
 </div>
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [About](#about)
 - [Key Features](#key-features)
@@ -23,6 +23,7 @@
 - [How RSVP Works](#how-rsvp-works)
 - [Getting Started](#getting-started)
 - [Usage Guide](#usage-guide)
+- [Loading Text via URL](#loading-text-via-url)
 - [Keyboard Shortcuts](#keyboard-shortcuts)
 - [Technology Stack](#technology-stack)
 - [Browser Compatibility](#browser-compatibility)
@@ -31,68 +32,69 @@
 - [Author](#author)
 - [License](#license)
 - [Acknowledgments](#acknowledgments)
+- [Roadmap](#roadmap)
 
 ---
 
-## 🎯 About
+## About
 
 **_rvsp_** is a cutting-edge web-based speed reading application that leverages **Rapid Serial Visual Presentation (RSVP)** technology to help users read faster, comprehend better, and eliminate eye strain. Built with modern web technologies, _rvsp_ offers a minimalist, distraction-free reading experience that can boost your reading speed by up to 3x.
 
 Unlike traditional reading where your eyes move across lines of text, _rvsp_ presents words one at a time at your desired speed, eliminating the need for eye movement and reducing cognitive load. This scientifically-proven technique is used by speed readers worldwide to process information more efficiently.
 
-### 🌟 Why Choose _rvsp_?
+### Why Choose _rvsp_?
 
-- **⚡ Read 3x Faster** - Increase reading speed from 200-300 WPM to 600-1000+ WPM
-- **🎯 Improved Focus** - Single-word display eliminates distractions
-- **👁️ Reduced Eye Strain** - No eye movement means less fatigue
-- **📚 Better Retention** - Optimal Recognition Point (ORP) algorithm maximizes comprehension
-- **🌙 Beautiful Interface** - Sleek, modern dark mode design
-- **💾 Built-in Library** - Save and organize your reading materials
-- **📊 Progress Tracking** - Resume exactly where you left off
-- **🆓 100% Free** - No subscriptions, no ads, no tracking
+- **Read 3x Faster** - Increase reading speed from 200-300 WPM to 600-1000+ WPM
+- **Improved Focus** - Single-word display eliminates distractions
+- **Reduced Eye Strain** - No eye movement means less fatigue
+- **Better Retention** - Optimal Recognition Point (ORP) algorithm maximizes comprehension
+- **Beautiful Interface** - Sleek, modern dark mode design
+- **Built-in Library** - Save and organize your reading materials
+- **Progress Tracking** - Resume exactly where you left off
+- **100% Free** - No subscriptions, no ads, no tracking
 
 ---
 
-## ✨ Key Features
+## Key Features
 
-### 🚀 Core Reading Features
+### Core Reading Features
 - **Advanced RSVP Engine** - Scientifically optimized word presentation
 - **Optimal Recognition Point (ORP)** - Intelligent character-level focus highlighting
 - **Adjustable Reading Speed** - 100-1000 WPM with 10 WPM increments
 - **Adaptive Pacing** - Automatic delay adjustments for punctuation and long words
 - **Real-time Speed Control** - Adjust WPM on the fly without interrupting reading
 
-### 📚 Content Management
+### Content Management
 - **Personal Library System** - Save unlimited articles, books, and notes
 - **Smart Bookmarking** - Save your position in any document
 - **Progress Tracking** - Visual progress bars show completion percentage
 - **Quick Resume** - Pick up exactly where you left off
 - **Title Management** - Organize content with custom titles
+- **Load via URL** - Populate the reader directly from a link (see [Loading Text via URL](#loading-text-via-url))
 
-### 🎨 User Experience
+### User Experience
 - **Minimal Dark Interface** - Eye-friendly design for extended reading sessions
 - **Responsive Design** - Optimized for desktop, tablet, and mobile devices
 - **Focus Guides** - Visual alignment aids for centered fixation
 - **Smooth Animations** - Polished transitions and micro-interactions
 - **Zero Distractions** - Fullscreen reading mode
+- **Themes & Fonts** - 10 built-in color themes and 4 font choices
 
-### ⌨️ Power User Tools
+### Power User Tools
 - **Comprehensive Keyboard Shortcuts** - Complete keyboard navigation
 - **Seekable Progress Bar** - Jump to any position with a click
 - **Quick Skip Controls** - Jump forward/backward by 10 words
 - **Speed Presets** - Quickly adjust reading speed with +/- controls
 - **Demo Content** - Built-in example text to test the app
 
-### 🔧 Technical Features
+### Technical Features
 - **Pure Client-Side** - No server required, 100% privacy
 - **LocalStorage Integration** - Persistent data without databases
 - **Lightweight** - Fast loading, minimal dependencies
-- **SEO Optimized** - Rich metadata and structured data markup
-- **PWA Ready** - Progressive Web App capabilities
 
 ---
 
-## 🎬 Demo
+## Demo
 
 **Try it now:** [eeman1113.github.io/_rvsp_/](https://eeman1113.github.io/_rvsp_/)
 
@@ -105,7 +107,7 @@ Unlike traditional reading where your eyes move across lines of text, _rvsp_ pre
 
 ---
 
-## 🧠 How RSVP Works
+## How RSVP Works
 
 ### The Science Behind Speed Reading
 
@@ -141,7 +143,7 @@ This allows your brain to process words more efficiently, as research shows we r
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Online Version (Recommended)
 
@@ -186,7 +188,7 @@ Then visit `http://localhost:8000` in your browser.
 
 ---
 
-## 📖 Usage Guide
+## Usage Guide
 
 ### Basic Reading Workflow
 
@@ -202,7 +204,7 @@ Then visit `http://localhost:8000` in your browser.
 
 3. **Save Progress**
    - Click "Save to Library" to store content
-   - Use bookmark button (📑) to save position
+   - Use the bookmark button to save position
    - Resume anytime from your library
 
 ### Advanced Tips
@@ -225,11 +227,35 @@ Then visit `http://localhost:8000` in your browser.
 - Use descriptive titles for easy identification
 - Review progress bars to track completion
 - Delete finished items to keep library clean
-- Export important content before clearing library
 
 ---
 
-## ⌨️ Keyboard Shortcuts
+## Loading Text via URL
+
+_rvsp_ can be pre-loaded with content directly from a link, which is useful for bookmarklets, share links, or feeding it text from another tool.
+
+### Format
+
+```
+https://your-site/index.html#text=<URL-encoded text>&title=<URL-encoded title (optional)>
+```
+
+- **`text`** (required) - The content to load, URL-encoded (e.g. `encodeURIComponent(...)` in JavaScript).
+- **`title`** (optional) - A title for the content, also URL-encoded.
+
+The hash fragment (`#`) is used rather than a query string (`?`) because fragments are never sent to the server, so they aren't subject to the request-line length limits (commonly ~8KB) most web servers enforce on query strings. This lets you pass in very long text. A `?text=...&title=...` query string is also supported as a fallback.
+
+### Example
+
+```js
+const url = `https://your-site/index.html#text=${encodeURIComponent(myText)}&title=${encodeURIComponent(myTitle)}`;
+```
+
+When the page loads, it reads these parameters, fills in the text and title fields, and then removes them from the address bar so the (potentially large) parameter doesn't linger in the URL or browser history.
+
+---
+
+## Keyboard Shortcuts
 
 Master these shortcuts for a seamless reading experience:
 
@@ -243,11 +269,11 @@ Master these shortcuts for a seamless reading experience:
 | `B` | Save bookmark |
 | `Esc` | Exit reader mode |
 
-> **Pro Tip:** Use keyboard shortcuts for distraction-free reading without touching the mouse!
+> **Tip:** Use keyboard shortcuts for distraction-free reading without touching the mouse!
 
 ---
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 _rvsp_ is built with modern, performant web technologies:
 
@@ -261,6 +287,7 @@ _rvsp_ is built with modern, performant web technologies:
 ### Typography
 - **Inter** - Clean, readable UI font
 - **JetBrains Mono** - Monospace font for code-like elements
+- **Merriweather** - Serif option for longer-form reading
 
 ### Browser APIs
 - **LocalStorage API** - Persistent data storage
@@ -271,7 +298,6 @@ _rvsp_ is built with modern, performant web technologies:
 - **Mobile-First** - Responsive design from the ground up
 - **Performance-First** - Optimized rendering and minimal reflows
 - **Accessibility** - Semantic HTML and keyboard navigation
-- **SEO Optimized** - Rich metadata and structured data
 
 ### Performance Optimizations
 - **Zero Dependencies** - All libraries loaded from CDN
@@ -281,44 +307,43 @@ _rvsp_ is built with modern, performant web technologies:
 
 ---
 
-## 🌐 Browser Compatibility
+## Browser Compatibility
 
 | Browser | Minimum Version | Status |
 |---------|----------------|--------|
-| Chrome | 90+ | ✅ Fully Supported |
-| Firefox | 88+ | ✅ Fully Supported |
-| Safari | 14+ | ✅ Fully Supported |
-| Edge | 90+ | ✅ Fully Supported |
-| Opera | 76+ | ✅ Fully Supported |
-| Samsung Internet | 14+ | ✅ Supported |
+| Chrome | 90+ | Fully Supported |
+| Firefox | 88+ | Fully Supported |
+| Safari | 14+ | Fully Supported |
+| Edge | 90+ | Fully Supported |
+| Opera | 76+ | Fully Supported |
+| Samsung Internet | 14+ | Supported |
 
 **Mobile Browsers:** Fully responsive and optimized for iOS Safari and Chrome Android.
 
 ---
 
-## ⚡ Performance
+## Performance
 
 - **Load Time:** <500ms on 3G connection
 - **First Contentful Paint:** <200ms
 - **Time to Interactive:** <500ms
-- **Bundle Size:** ~35KB (uncompressed HTML)
+- **Bundle Size:** ~40KB (uncompressed HTML)
 - **Memory Usage:** <5MB typical
 - **Rendering:** 60 FPS smooth animations
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Here's how you can help improve _rvsp_:
 
 ### Ways to Contribute
-- 🐛 Report bugs and issues
-- 💡 Suggest new features
-- 📝 Improve documentation
-- 🎨 Enhance UI/UX design
-- 🌍 Add translations
-- 🧪 Write tests
-- ⚡ Optimize performance
+- Report bugs and issues
+- Suggest new features
+- Improve documentation
+- Enhance UI/UX design
+- Write tests
+- Optimize performance
 
 ### Development Setup
 
@@ -346,7 +371,7 @@ Have an idea? [Open an issue](https://github.com/eeman1113/_rvsp_/issues) with t
 
 ---
 
-## 👨‍💻 Author
+## Author
 
 **Eeman Majumder**
 
@@ -355,99 +380,34 @@ Have an idea? [Open an issue](https://github.com/eeman1113/_rvsp_/issues) with t
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
 
 ### MIT License Summary
-- ✅ Commercial use
-- ✅ Modification
-- ✅ Distribution
-- ✅ Private use
-- ❌ Liability
-- ❌ Warranty
+- Commercial use
+- Modification
+- Distribution
+- Private use
+- No liability
+- No warranty
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - **RSVP Research** - Based on cognitive science research in rapid reading
 - **Tailwind CSS** - For the excellent utility-first CSS framework
 - **Lucide Icons** - For beautiful, consistent icons
-- **Google Fonts** - For Inter and JetBrains Mono typefaces
-- **Open Source Community** - For inspiration and best practices
+- **Google Fonts** - For Inter, JetBrains Mono, and Merriweather typefaces
 
 ---
 
-## 📊 Project Stats
+## Roadmap
 
-<div align="center">
+A short list of possible future improvements:
 
-![GitHub stars](https://img.shields.io/github/stars/eeman1113/_rvsp_?style=social)
-![GitHub forks](https://img.shields.io/github/forks/eeman1113/_rvsp_?style=social)
-![GitHub watchers](https://img.shields.io/github/watchers/eeman1113/_rvsp_?style=social)
-
-</div>
-
----
-
-## 🔗 Quick Links
-
-- [🌐 Live Application](https://eeman1113.github.io/_rvsp_/)
-- [📖 Documentation](#usage-guide)
-- [🐛 Issue Tracker](https://github.com/eeman1113/_rvsp_/issues)
-- [💡 Feature Requests](https://github.com/eeman1113/_rvsp_/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement)
-- [📋 Changelog](CHANGELOG.md)
-
----
-
-## 📈 Roadmap
-
-### Upcoming Features
-- [ ] Export reading statistics
-- [ ] Multiple color themes
-- [ ] Font customization
-- [ ] Cloud sync (optional)
-- [ ] Browser extension
-- [ ] Mobile apps (iOS/Android)
-- [ ] Advanced analytics dashboard
-- [ ] Social sharing capabilities
-- [ ] Import from popular reading apps
-- [ ] Multi-language support
-
----
-
-## 💬 Support
-
-Having trouble? Here are some helpful resources:
-
-- 📚 Check the [Usage Guide](#usage-guide)
-- 🐛 [Report a bug](https://github.com/eeman1113/_rvsp_/issues/new?labels=bug)
-- 💡 [Request a feature](https://github.com/eeman1113/_rvsp_/issues/new?labels=enhancement)
-- ⭐ Star the repo if you find it useful!
-
----
-
-## 🎓 Learn More About Speed Reading
-
-- [Wikipedia: Speed Reading](https://en.wikipedia.org/wiki/Speed_reading)
-- [Research: RSVP Technology](https://en.wikipedia.org/wiki/Rapid_serial_visual_presentation)
-- [Cognitive Science of Reading](https://www.frontiersin.org/articles/10.3389/fpsyg.2019.00008/full)
-
----
-
-<div align="center">
-
-**Built with ❤️ by [Eeman Majumder](https://github.com/eeman1113)**
-
-If you found _rvsp_ helpful, please consider giving it a ⭐!
-
-[⬆ Back to Top](#_rvsp_---the-better-way-to-read-)
-
-</div>
-
----
-
-### 🏷️ Keywords for SEO
-
-`speed reading` `RSVP` `rapid serial visual presentation` `read faster` `productivity tool` `web app` `reading app` `speed reader` `focus reading` `dark mode` `minimal design` `browser app` `reading productivity` `optimal recognition point` `ORP` `eye strain reduction` `comprehension` `reading efficiency` `speed reading app` `free speed reader` `online speed reading` `javascript speed reader` `vanilla js` `tailwind css` `web-based reader` `client-side app` `progressive web app` `PWA` `reading technology` `cognitive enhancement` `information processing` `text reader` `article reader` `book reader` `study tool` `research tool` `academic reading` `efficient reading` `modern web app`
+- [ ] Export/import library as a JSON backup
+- [ ] Reading stats (words read, time spent, WPM history)
+- [ ] Font size control
+- [ ] PWA support (manifest + service worker)
