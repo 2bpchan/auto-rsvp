@@ -63,7 +63,6 @@
             --wrapper-color-bracket: #4ade80;
             --wrapper-color-brace: #c084fc;
             --wrapper-color-angle: #fbbf24;
-            --wrapper-color-asterisk: #f472b6;
             /* Where the pivot letter sits within the word display, as a % from
                the left. Kept well left of center because the ORP algorithm
                below caps the left-hand portion at 4 characters, so the right
@@ -325,9 +324,9 @@
                     </div>
 
                     <div class="space-y-2">
-                        <label class="text-xs theme-text-sec uppercase tracking-wider">Slowdown for Non-Letter Words (%)</label>
+                        <label class="text-xs theme-text-sec uppercase tracking-wider">Slowdown per Non-Letter Character (%)</label>
                         <input type="number" id="setting-nonalpha-slowdown" class="w-full theme-bg border theme-border rounded p-2 theme-text-main focus:border-[var(--text-main)] outline-none" value="50" min="0" max="500">
-                        <p class="text-[10px] theme-text-sec">Extra display time for words containing anything other than A-Z, e.g. hyphenated words or file paths.</p>
+                        <p class="text-[10px] theme-text-sec">Extra display time per character that isn't A-Z, so symbol-heavy words like file paths get more time than a word with just one hyphen.</p>
                     </div>
 
                     <div class="space-y-2">
@@ -753,22 +752,16 @@
 
         // --- Reader Core Logic ---
 
-        // Pair-based wrappers (open != close) can nest freely. Asterisks
-        // toggle open/closed instead, and are only recognized within the
-        // leading/trailing run of wrapper punctuation at a word's edges
-        // (e.g. both chars in `*word*)` are still "edge" even though
-        // neither is the literal first/last character). Quotes are
-        // deliberately not tracked — ordinary punctuation between a closing
-        // quote and the rest of a word's trailing cluster (e.g. `"read".)`)
-        // broke the open/closed toggle too easily to be worth it.
+        // Distinct open/close characters, so they nest freely with no
+        // ambiguity about which end is which (unlike quotes or asterisks,
+        // which used the same character for both and got dropped after
+        // proving too easy to leave stuck open by ordinary punctuation).
         const WRAPPER_TYPES = [
-            { id: 'paren', open: '(', close: ')', sameChar: false, color: 'var(--wrapper-color-paren)' },
-            { id: 'bracket', open: '[', close: ']', sameChar: false, color: 'var(--wrapper-color-bracket)' },
-            { id: 'brace', open: '{', close: '}', sameChar: false, color: 'var(--wrapper-color-brace)' },
-            { id: 'angle', open: '<', close: '>', sameChar: false, color: 'var(--wrapper-color-angle)' },
-            { id: 'asterisk', open: '*', close: '*', sameChar: true, color: 'var(--wrapper-color-asterisk)' }
+            { id: 'paren', open: '(', close: ')', color: 'var(--wrapper-color-paren)' },
+            { id: 'bracket', open: '[', close: ']', color: 'var(--wrapper-color-bracket)' },
+            { id: 'brace', open: '{', close: '}', color: 'var(--wrapper-color-brace)' },
+            { id: 'angle', open: '<', close: '>', color: 'var(--wrapper-color-angle)' }
         ];
-        const WRAPPER_CHARS = new Set(WRAPPER_TYPES.flatMap(t => t.sameChar ? [t.open] : [t.open, t.close]));
 
         // Scans whitespace-split words once, tracking a stack of currently-open
         // wrapper types, so the reader can show them in the margins instead of
@@ -777,39 +770,18 @@
         // (outermost first) for margin rendering.
         function computeWrapperInfo(rawWords) {
             const stack = [];
-            const openTypes = new Set();
             const perWordActiveStack = [];
             const strippedWords = [];
 
             rawWords.forEach(word => {
                 const displayStack = stack.slice();
                 const kept = [];
-                const chars = word.split('');
 
-                let leadEnd = 0;
-                while (leadEnd < chars.length && WRAPPER_CHARS.has(chars[leadEnd])) leadEnd++;
-                let trailStart = chars.length;
-                while (trailStart > leadEnd && WRAPPER_CHARS.has(chars[trailStart - 1])) trailStart--;
-
-                chars.forEach((ch, pos) => {
-                    const isEdge = pos < leadEnd || pos >= trailStart;
-                    const type = WRAPPER_TYPES.find(t => t.sameChar
-                        ? (t.open === ch && isEdge)
-                        : (t.open === ch || t.close === ch));
-
+                word.split('').forEach(ch => {
+                    const type = WRAPPER_TYPES.find(t => t.open === ch || t.close === ch);
                     if (!type) { kept.push(ch); return; }
 
-                    if (type.sameChar) {
-                        if (openTypes.has(type.id)) {
-                            openTypes.delete(type.id);
-                            const idx = stack.lastIndexOf(type.id);
-                            if (idx !== -1) stack.splice(idx, 1);
-                        } else {
-                            openTypes.add(type.id);
-                            stack.push(type.id);
-                            displayStack.push(type.id);
-                        }
-                    } else if (ch === type.open) {
+                    if (ch === type.open) {
                         stack.push(type.id);
                         displayStack.push(type.id);
                     } else {
@@ -923,7 +895,11 @@
             let delay = 60000 / state.wpm;
             if (/[.,;!?]$/.test(currentWord)) delay *= 1.5;
             if (currentWord.length > 10) delay *= 1.2;
-            if (/[^A-Za-z]/.test(currentWord)) delay *= (1 + state.nonAlphaSlowdown / 100);
+            // Each non-letter character (hyphens, slashes, digits, etc.) adds
+            // another slowdown tier, so jargon-heavy words like file paths
+            // get progressively more time than a word with just one symbol.
+            const nonAlphaCount = (currentWord.match(/[^A-Za-z]/g) || []).length;
+            if (nonAlphaCount > 0) delay *= (1 + (nonAlphaCount * state.nonAlphaSlowdown) / 100);
 
             state.currentIndex++;
 
