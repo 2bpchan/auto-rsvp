@@ -57,6 +57,13 @@
             --text-secondary: #888888;
             --focus-point: #ef4444;
             --font-family: 'Inter', sans-serif;
+            /* Fixed, theme-independent colors so each wrapper type stays
+               identifiable at a glance regardless of the active theme. */
+            --wrapper-color-paren: #60a5fa;
+            --wrapper-color-bracket: #4ade80;
+            --wrapper-color-brace: #c084fc;
+            --wrapper-color-angle: #fbbf24;
+            --wrapper-color-asterisk: #f472b6;
             /* Where the pivot letter sits within the word display, as a % from
                the left. Kept well left of center because the ORP algorithm
                below caps the left-hand portion at 4 characters, so the right
@@ -110,16 +117,16 @@
         .orp-pivot { color: var(--focus-point); width: auto; text-align: center; transform: scale(1.05); flex-shrink: 0; }
         .orp-right { text-align: left; width: calc(100% - var(--orp-pivot-position)); padding-left: 2px; color: var(--text-secondary); }
 
-        /* Wrapper Margins - shows enclosing punctuation (parens, quotes, etc)
-           the current word is nested inside, outermost pair furthest out. */
+        /* Wrapper Margins - shows enclosing punctuation (parens, brackets,
+           etc) the current word is nested inside, outermost pair furthest
+           out. Sized up and color-coded per type (see :root) so they're
+           easy to pick out in peripheral vision without shifting focus. */
         .wrapper-margin {
             position: absolute;
             top: 50%;
             transform: translateY(-50%);
-            color: var(--text-secondary);
-            font-weight: 600;
-            font-size: calc(1.75rem * var(--word-font-scale));
-            opacity: 0.5;
+            font-weight: 700;
+            font-size: calc(3.5rem * var(--word-font-scale));
             letter-spacing: 0.15em;
             white-space: nowrap;
             user-select: none;
@@ -746,21 +753,20 @@
 
         // --- Reader Core Logic ---
 
-        // Pair-based wrappers (open != close) can nest freely. Same-character
-        // wrappers (quotes, asterisks) toggle open/closed instead, and are
-        // only recognized within the leading/trailing run of wrapper
-        // punctuation at a word's edges (e.g. both chars in `*word*)` or
-        // `"(word)"` are still "edge" even though neither is the literal
-        // first/last character) — a mid-word `'` is almost always an
-        // apostrophe (e.g. "don't"), not a quote.
+        // Pair-based wrappers (open != close) can nest freely. Asterisks
+        // toggle open/closed instead, and are only recognized within the
+        // leading/trailing run of wrapper punctuation at a word's edges
+        // (e.g. both chars in `*word*)` are still "edge" even though
+        // neither is the literal first/last character). Quotes are
+        // deliberately not tracked — ordinary punctuation between a closing
+        // quote and the rest of a word's trailing cluster (e.g. `"read".)`)
+        // broke the open/closed toggle too easily to be worth it.
         const WRAPPER_TYPES = [
-            { id: 'paren', open: '(', close: ')', sameChar: false },
-            { id: 'bracket', open: '[', close: ']', sameChar: false },
-            { id: 'brace', open: '{', close: '}', sameChar: false },
-            { id: 'angle', open: '<', close: '>', sameChar: false },
-            { id: 'dquote', open: '"', close: '"', sameChar: true },
-            { id: 'squote', open: '\'', close: '\'', sameChar: true },
-            { id: 'asterisk', open: '*', close: '*', sameChar: true }
+            { id: 'paren', open: '(', close: ')', sameChar: false, color: 'var(--wrapper-color-paren)' },
+            { id: 'bracket', open: '[', close: ']', sameChar: false, color: 'var(--wrapper-color-bracket)' },
+            { id: 'brace', open: '{', close: '}', sameChar: false, color: 'var(--wrapper-color-brace)' },
+            { id: 'angle', open: '<', close: '>', sameChar: false, color: 'var(--wrapper-color-angle)' },
+            { id: 'asterisk', open: '*', close: '*', sameChar: true, color: 'var(--wrapper-color-asterisk)' }
         ];
         const WRAPPER_CHARS = new Set(WRAPPER_TYPES.flatMap(t => t.sameChar ? [t.open] : [t.open, t.close]));
 
@@ -787,15 +793,6 @@
 
                 chars.forEach((ch, pos) => {
                     const isEdge = pos < leadEnd || pos >= trailStart;
-
-                    // "students'" - a trailing apostrophe right after an "s",
-                    // with no single-quote currently open, is almost always a
-                    // plural possessive rather than the start of a new quote.
-                    if (ch === '\'' && isEdge && !openTypes.has('squote') && /[sS]/.test(chars[pos - 1] || '')) {
-                        kept.push(ch);
-                        return;
-                    }
-
                     const type = WRAPPER_TYPES.find(t => t.sameChar
                         ? (t.open === ch && isEdge)
                         : (t.open === ch || t.close === ch));
@@ -833,8 +830,15 @@
         function setWordsFromText(text) {
             const rawWords = text.split(/\s+/).filter(w => w.length > 0);
             const { strippedWords, perWordActiveStack } = computeWrapperInfo(rawWords);
-            state.words = strippedWords;
-            state.wrapperStacks = perWordActiveStack;
+            // A token made up entirely of wrapper characters (e.g. a lone "(")
+            // strips down to nothing — drop it rather than flash a blank word.
+            state.words = [];
+            state.wrapperStacks = [];
+            strippedWords.forEach((word, i) => {
+                if (word.length === 0) return;
+                state.words.push(word);
+                state.wrapperStacks.push(perWordActiveStack[i]);
+            });
         }
 
         function getPivotIndex(word) {
@@ -847,14 +851,14 @@
 
         function renderWrapperMargins() {
             const stack = state.wrapperStacks[state.currentIndex] || [];
-            let left = '', right = '';
+            let leftHtml = '', rightHtml = '';
             stack.forEach(typeId => {
                 const type = WRAPPER_TYPES.find(t => t.id === typeId);
-                left += type.open;
-                right = type.close + right;
+                leftHtml += `<span style="color:${type.color}">${type.open}</span>`;
+                rightHtml = `<span style="color:${type.color}">${type.close}</span>` + rightHtml;
             });
-            els.wrapperLeft.textContent = left;
-            els.wrapperRight.textContent = right;
+            els.wrapperLeft.innerHTML = leftHtml;
+            els.wrapperRight.innerHTML = rightHtml;
         }
 
         function renderWord(word) {
