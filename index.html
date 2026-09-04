@@ -134,6 +134,18 @@
         .wrapper-margin-left { left: 1.5rem; text-align: right; }
         .wrapper-margin-right { right: 1.5rem; text-align: left; }
 
+        /* Sentence-end "poof" effect - a small gif that fires near the end
+           of the word whenever a sentence is completed. Position is set by
+           JS to track the actual (auto-fit-scaled) word position. */
+        .sentence-poof {
+            position: absolute;
+            width: 48px;
+            height: 48px;
+            display: none;
+            pointer-events: none;
+            z-index: 30;
+        }
+
         /* Slider Styling */
         input[type=range] { -webkit-appearance: none; background: transparent; }
         input[type=range]::-webkit-slider-thumb {
@@ -247,6 +259,9 @@
                     <span class="orp-right" id="word-right">ng...</span>
                 </div>
 
+                <!-- Sentence-end "poof" effect -->
+                <img id="sentence-poof" class="sentence-poof" alt="">
+
                  <div id="bookmark-toast" class="absolute mt-32 theme-surface border theme-border theme-text-main px-4 py-2 rounded-full text-xs opacity-0 transition-opacity duration-500">
                     Bookmark Saved
                 </div>
@@ -334,6 +349,11 @@
                         <input type="number" id="setting-font-size" class="w-full theme-bg border theme-border rounded p-2 theme-text-main focus:border-[var(--text-main)] outline-none" value="100" min="50" max="200" step="10">
                     </div>
 
+                    <div class="flex items-center justify-between">
+                        <label for="setting-sentence-effect" class="text-xs theme-text-sec uppercase tracking-wider">Sentence-End Poof Effect</label>
+                        <input type="checkbox" id="setting-sentence-effect" class="w-5 h-5 accent-[var(--text-main)] cursor-pointer" checked>
+                    </div>
+
                     <!-- Themes -->
                     <div class="space-y-3">
                         <label class="text-xs theme-text-sec uppercase tracking-wider">Themes</label>
@@ -404,12 +424,18 @@
             currentFont: 'inter',
             nonAlphaSlowdown: 50,
             fontSizeScale: 100,
-            wrapperStacks: []
+            wrapperStacks: [],
+            sentenceEffectEnabled: true,
+            sentencePoofTimeout: null
         };
 
         const MIN_WORD_SCALE = 0.4;
         const MAX_NONALPHA_SLOWDOWN_CHARS = 5;
         const ORP_PIVOT_FRACTION = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--orp-pivot-position')) / 100;
+        // Embedded locally (not hotlinked) so it can't break if the original host goes down.
+        // Source: https://github.com/hoovercj/vscode-power-mode/issues/1#issuecomment-329065714
+        const SENTENCE_POOF_GIF_URL = 'data:image/gif;base64,R0lGODlhyACWAJECAP///wAAAP///wAAACH/C05FVFNDQVBFMi4wAwEAAAAh/wtYTVAgRGF0YVhNUDw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuNi1jMDY3IDc5LjE1Nzc0NywgMjAxNS8wMy8zMC0yMzo0MDo0MiAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENDIDIwMTUgKFdpbmRvd3MpIiB4bXBNTTpJbnN0YW5jZUlEPSJ4bXAuaWlkOjI2RTNGMTA1OTgzNjExRTdBODc2OTZFQTZEN0Y2REFCIiB4bXBNTTpEb2N1bWVudElEPSJ4bXAuZGlkOjI2RTNGMTA2OTgzNjExRTdBODc2OTZFQTZEN0Y2REFCIj4gPHhtcE1NOkRlcml2ZWRGcm9tIHN0UmVmOmluc3RhbmNlSUQ9InhtcC5paWQ6MjZFM0YxMDM5ODM2MTFFN0E4NzY5NkVBNkQ3RjZEQUIiIHN0UmVmOmRvY3VtZW50SUQ9InhtcC5kaWQ6MjZFM0YxMDQ5ODM2MTFFN0E4NzY5NkVBNkQ3RjZEQUIiLz4gPC9yZGY6RGVzY3JpcHRpb24+IDwvcmRmOlJERj4gPC94OnhtcG1ldGE+IDw/eHBhY2tldCBlbmQ9InIiPz4B//79/Pv6+fj39vX08/Lx8O/u7ezr6uno5+bl5OPi4eDf3t3c29rZ2NfW1dTT0tHQz87NzMvKycjH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';
+        const SENTENCE_POOF_DURATION_MS = 440;
 
         const els = {
             textInput: document.getElementById('text-input'),
@@ -425,6 +451,7 @@
             wordRight: document.getElementById('word-right'),
             wrapperLeft: document.getElementById('wrapper-left'),
             wrapperRight: document.getElementById('wrapper-right'),
+            sentencePoof: document.getElementById('sentence-poof'),
             progressBar: document.getElementById('progress-bar'),
             progressPercent: document.getElementById('progress-percent'),
             progressTime: document.getElementById('progress-time'),
@@ -436,6 +463,7 @@
             settingWpm: document.getElementById('setting-wpm'),
             settingNonAlphaSlowdown: document.getElementById('setting-nonalpha-slowdown'),
             settingFontSize: document.getElementById('setting-font-size'),
+            settingSentenceEffect: document.getElementById('setting-sentence-effect'),
             orpContainer: document.querySelector('.orp-container'),
             bookmarkBtn: document.getElementById('bookmark-btn'),
             bookmarkToast: document.getElementById('bookmark-toast'),
@@ -451,6 +479,7 @@
             const savedFont = localStorage.getItem('rvsp_font');
             const savedNonAlphaSlowdown = localStorage.getItem('rvsp_nonalpha_slowdown');
             const savedFontSize = localStorage.getItem('rvsp_font_size_scale');
+            const savedSentenceEffect = localStorage.getItem('rvsp_sentence_effect_enabled');
 
             if (savedWpm) {
                 state.wpm = parseInt(savedWpm);
@@ -464,6 +493,10 @@
                 state.fontSizeScale = parseInt(savedFontSize);
                 els.settingFontSize.value = savedFontSize;
                 document.documentElement.style.setProperty('--word-font-scale', state.fontSizeScale / 100);
+            }
+            if (savedSentenceEffect !== null) {
+                state.sentenceEffectEnabled = savedSentenceEffect === 'true';
+                els.settingSentenceEffect.checked = state.sentenceEffectEnabled;
             }
             if (savedTheme && themes[savedTheme]) applyTheme(savedTheme);
             if (savedFont && fonts[savedFont]) applyFont(savedFont);
@@ -738,6 +771,9 @@
                 if (state.words[state.currentIndex]) renderWord(state.words[state.currentIndex]);
             }
 
+            state.sentenceEffectEnabled = els.settingSentenceEffect.checked;
+            localStorage.setItem('rvsp_sentence_effect_enabled', state.sentenceEffectEnabled);
+
             localStorage.setItem('rvsp_theme', state.currentTheme);
             localStorage.setItem('rvsp_font', state.currentFont);
             toggleSettings();
@@ -917,15 +953,43 @@
             updateProgress();
 
             const delay = computeWordDelay(currentWord);
+            const atSentenceEnd = isSentenceEnd(currentWord);
+            if (atSentenceEnd) triggerSentencePoof();
 
             state.currentIndex++;
 
-            if (state.stopAtSentenceEnd && isSentenceEnd(currentWord)) {
+            if (state.stopAtSentenceEnd && atSentenceEnd) {
                 state.stopAtSentenceEnd = false;
                 state.intervalId = setTimeout(pause, delay);
             } else {
                 state.intervalId = setTimeout(tick, delay);
             }
+        }
+
+        // Fires the "poof" gif near the end of the just-displayed word,
+        // roughly where its trailing period sits, when a sentence completes
+        // during playback (not on manual seeking/scrubbing).
+        function triggerSentencePoof() {
+            if (!state.sentenceEffectEnabled) return;
+
+            void els.wordRight.offsetWidth; // force layout so the rect below reflects the current (possibly auto-fit-scaled) position
+            const wordRect = els.wordRight.getBoundingClientRect();
+            const stageRect = els.readerStage.getBoundingClientRect();
+            const size = els.sentencePoof.offsetWidth || 48;
+
+            els.sentencePoof.style.left = `${wordRect.right - stageRect.left + 6}px`;
+            els.sentencePoof.style.top = `${wordRect.top - stageRect.top + (wordRect.height - size) / 2}px`;
+            els.sentencePoof.style.display = 'block';
+            // Reassign the src to restart the gif from its first frame each
+            // time (a plain reference isn't enough - the browser just keeps
+            // playing wherever the animation already was).
+            els.sentencePoof.src = '';
+            els.sentencePoof.src = SENTENCE_POOF_GIF_URL;
+
+            clearTimeout(state.sentencePoofTimeout);
+            state.sentencePoofTimeout = setTimeout(() => {
+                els.sentencePoof.style.display = 'none';
+            }, SENTENCE_POOF_DURATION_MS);
         }
 
         function togglePlay() {
