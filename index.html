@@ -425,6 +425,7 @@
             nonAlphaSlowdown: 50,
             fontSizeScale: 100,
             wrapperStacks: [],
+            wordEmphasis: [],
             sentenceEffectEnabled: true,
             sentencePoofTimeout: null
         };
@@ -815,10 +816,6 @@
                 const kept = [];
 
                 word.split('').forEach(ch => {
-                    // Asterisks are pure visual clutter (markdown emphasis,
-                    // etc) - just delete them, don't track or count them.
-                    if (ch === '*') return;
-
                     const type = WRAPPER_TYPES.find(t => t.open === ch || t.close === ch);
                     if (!type) { kept.push(ch); return; }
 
@@ -838,19 +835,118 @@
             return { strippedWords, perWordActiveStack };
         }
 
-        // Splits text into words and replaces state.words/state.wrapperStacks
-        // in one step, so the two always stay in sync.
+        // A span of emphasis can't stretch further than this many words, even
+        // if a matching closing marker exists somewhere way out there — keeps
+        // a stray "*" from pairing with an unrelated one pages later.
+        const MAX_EMPHASIS_SPAN_WORDS = 30;
+
+        // Finds the leading/trailing run of asterisks in a word. Only runs of
+        // exactly 1 (*italic*) or 2 (**bold**) are treated as markers - longer
+        // runs are left as literal text. Trailing sentence punctuation is
+        // allowed after a closing run so "**bold**." still finds its "**".
+        function edgeStarCounts(word) {
+            let lead = 0;
+            while (lead < word.length && word[lead] === '*') lead++;
+
+            let end = word.length;
+            while (end > lead && /[.,;:!?]/.test(word[end - 1])) end--;
+
+            let trail = 0;
+            while (trail < end - lead && word[end - 1 - trail] === '*') trail++;
+
+            return {
+                lead: (lead === 1 || lead === 2) ? lead : 0,
+                trail: (trail === 1 || trail === 2) ? trail : 0,
+                core: word.slice(lead, end - trail),
+                trailingPunct: word.slice(end)
+            };
+        }
+
+        // Resolves markdown-style *italic*/**bold** markers into a parallel
+        // emphasis array and strips the recognized markers from the words.
+        // The whole word list is known up front, so this never carries
+        // "currently open" state into a live render loop the way the bracket
+        // wrappers above do - an opening marker with no matching close within
+        // its scope (same sentence, and capped at MAX_EMPHASIS_SPAN_WORDS
+        // regardless) is simply left as a literal asterisk with no styling.
+        // Nothing is ever marked emphasized until a valid closing partner is
+        // actually found, so there's no way for it to get stuck "on".
+        function computeEmphasisInfo(words) {
+            const edges = words.map(edgeStarCounts);
+            const emphasis = words.map(() => ({ bold: false, italic: false }));
+            const matchedLead = words.map(() => 0);
+            const matchedTrail = words.map(() => 0);
+
+            // Self-contained single-word markers, e.g. "*word*" or "**word**".
+            edges.forEach((e, i) => {
+                if (e.lead > 0 && e.lead === e.trail && e.core.length > 0) {
+                    if (e.lead === 2) emphasis[i].bold = true; else emphasis[i].italic = true;
+                    matchedLead[i] = e.lead;
+                    matchedTrail[i] = e.trail;
+                }
+            });
+
+            let openSingle = null;
+            let openDouble = null;
+
+            words.forEach((word, i) => {
+                if (openSingle !== null && i - openSingle > MAX_EMPHASIS_SPAN_WORDS) openSingle = null;
+                if (openDouble !== null && i - openDouble > MAX_EMPHASIS_SPAN_WORDS) openDouble = null;
+
+                if (matchedLead[i] || matchedTrail[i]) {
+                    if (isSentenceEnd(word)) { openSingle = null; openDouble = null; }
+                    return;
+                }
+
+                const e = edges[i];
+
+                if (openDouble !== null && e.trail === 2) {
+                    for (let j = openDouble; j <= i; j++) emphasis[j].bold = true;
+                    matchedLead[openDouble] = 2;
+                    matchedTrail[i] = 2;
+                    openDouble = null;
+                } else if (openSingle !== null && e.trail === 1) {
+                    for (let j = openSingle; j <= i; j++) emphasis[j].italic = true;
+                    matchedLead[openSingle] = 1;
+                    matchedTrail[i] = 1;
+                    openSingle = null;
+                }
+
+                if (e.lead === 2 && openDouble === null) openDouble = i;
+                else if (e.lead === 1 && openSingle === null) openSingle = i;
+
+                if (isSentenceEnd(word)) { openSingle = null; openDouble = null; }
+            });
+
+            const strippedWords = words.map((word, i) => {
+                if (!matchedLead[i] && !matchedTrail[i]) return word;
+                const e = edges[i];
+                const frontLiteral = word.slice(0, e.lead - matchedLead[i]);
+                const backLiteral = '*'.repeat(e.trail - matchedTrail[i]);
+                return frontLiteral + e.core + backLiteral + e.trailingPunct;
+            });
+
+            return { strippedWords, emphasis };
+        }
+
+        // Splits text into words and replaces state.words/state.wrapperStacks/
+        // state.wordEmphasis in one step, so all three always stay in sync.
         function setWordsFromText(text) {
             const rawWords = text.split(/\s+/).filter(w => w.length > 0);
-            const { strippedWords, perWordActiveStack } = computeWrapperInfo(rawWords);
-            // A token made up entirely of wrapper characters (e.g. a lone "(")
-            // strips down to nothing — drop it rather than flash a blank word.
+            const { strippedWords: bracketStripped, perWordActiveStack } = computeWrapperInfo(rawWords);
+            const { strippedWords, emphasis } = computeEmphasisInfo(bracketStripped);
+
+            // A token made up entirely of wrapper/emphasis characters (e.g. a
+            // lone "(") strips down to nothing — drop it rather than flash a
+            // blank word.
             state.words = [];
             state.wrapperStacks = [];
+            state.wordEmphasis = [];
             strippedWords.forEach((word, i) => {
                 if (word.length === 0) return;
                 state.words.push(word);
                 state.wrapperStacks.push(perWordActiveStack[i]);
+                state.wordEmphasis.push(emphasis[i]);
             });
         }
 
@@ -880,8 +976,15 @@
             els.wordLeft.textContent = word.substring(0, pivotIndex);
             els.wordPivot.textContent = word.substring(pivotIndex, pivotIndex + 1);
             els.wordRight.textContent = word.substring(pivotIndex + 1);
+            renderWordEmphasis();
             renderWrapperMargins();
             fitWordToStage();
+        }
+
+        function renderWordEmphasis() {
+            const emphasis = state.wordEmphasis[state.currentIndex] || { bold: false, italic: false };
+            els.orpContainer.style.fontWeight = emphasis.bold ? '700' : '600';
+            els.orpContainer.style.fontStyle = emphasis.italic ? 'italic' : 'normal';
         }
 
         // Shrinks long words (hyphenated compounds, file paths, URLs) so they
