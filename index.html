@@ -146,6 +146,22 @@
             z-index: 30;
         }
 
+        /* Delay "wave" - for jargon-heavy words (3+ non-letter characters),
+           each character briefly brightens in sequence left to right, timed
+           by JS (via animation-delay/-duration per character) so the wave
+           sweeps the whole word in step with its actual display delay. */
+        @keyframes wave-pulse {
+            0%, 100% { filter: brightness(1); }
+            50% { filter: brightness(1.9); }
+        }
+        .wave-char {
+            display: inline-block;
+            animation-name: wave-pulse;
+            animation-timing-function: ease-in-out;
+            animation-iteration-count: 1;
+            animation-fill-mode: both;
+        }
+
         /* Slider Styling */
         input[type=range] { -webkit-appearance: none; background: transparent; }
         input[type=range]::-webkit-slider-thumb {
@@ -1043,6 +1059,49 @@
             return delay;
         }
 
+        function escapeHtml(ch) {
+            if (ch === '&') return '&amp;';
+            if (ch === '<') return '&lt;';
+            if (ch === '>') return '&gt;';
+            return ch;
+        }
+
+        // For jargon-heavy words (3+ non-letter characters), rebuilds the
+        // already-rendered word as per-character spans so a brightness
+        // "wave" can sweep left to right in sync with the word's actual
+        // delay: it traverses the whole word over the first 95% of delayMs,
+        // then leaves the word displaying plainly for the last 5%.
+        function triggerWordWave(word, delayMs) {
+            const nonAlphaCount = (word.match(/[^A-Za-z]/g) || []).length;
+            if (nonAlphaCount < 3) return;
+
+            const pivotIndex = getPivotIndex(word);
+            const leftText = word.substring(0, pivotIndex);
+            const pivotChar = word.substring(pivotIndex, pivotIndex + 1);
+            const rightText = word.substring(pivotIndex + 1);
+            const n = word.length;
+            const waveDuration = delayMs * 0.95;
+            const pulseDuration = Math.min(Math.max((waveDuration / n) * 3, 120), 400);
+
+            function buildSpans(text, startIndex) {
+                return text.split('').map((ch, j) => {
+                    const i = startIndex + j;
+                    const t = n > 1 ? (i / (n - 1)) * waveDuration : 0;
+                    // Pulse ENDS at t (not centered on it) so the very last
+                    // character's highlight is fully gone by waveDuration -
+                    // guarantees nothing is still animating once the 95% mark
+                    // (where the word should look completely plain) hits.
+                    const animDelay = Math.max(0, t - pulseDuration);
+                    return `<span class="wave-char" style="animation-duration:${pulseDuration}ms;animation-delay:${animDelay}ms">${escapeHtml(ch)}</span>`;
+                }).join('');
+            }
+
+            els.wordLeft.innerHTML = buildSpans(leftText, 0);
+            els.wordPivot.innerHTML = buildSpans(pivotChar, leftText.length);
+            els.wordRight.innerHTML = buildSpans(rightText, leftText.length + pivotChar.length);
+            fitWordToStage(); // re-measure since splitting into spans can shift the rendered width slightly
+        }
+
         function tick() {
             if (state.currentIndex >= state.words.length) {
                 pause();
@@ -1056,6 +1115,7 @@
             updateProgress();
 
             const delay = computeWordDelay(currentWord);
+            triggerWordWave(currentWord, delay);
             const atSentenceEnd = isSentenceEnd(currentWord);
             if (atSentenceEnd) triggerSentencePoof();
 
