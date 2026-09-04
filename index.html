@@ -146,7 +146,7 @@
             z-index: 30;
         }
 
-        /* Delay "wave" - for jargon-heavy words (3+ non-letter characters),
+        /* Delay "wave" - for jargon-heavy words (state.waveThreshold+ non-letter characters),
            each character briefly brightens in sequence left to right, timed
            by JS (via animation-delay/-duration per character) so the wave
            sweeps the whole word in step with its actual display delay. */
@@ -370,6 +370,12 @@
                         <input type="checkbox" id="setting-sentence-effect" class="w-5 h-5 accent-[var(--text-main)] cursor-pointer" checked>
                     </div>
 
+                    <div class="space-y-2">
+                        <label class="text-xs theme-text-sec uppercase tracking-wider">Wave Effect Threshold (non-letter chars)</label>
+                        <input type="number" id="setting-wave-threshold" class="w-full theme-bg border theme-border rounded p-2 theme-text-main focus:border-[var(--text-main)] outline-none" value="3" min="1" max="20">
+                        <p class="text-[10px] theme-text-sec">Words with at least this many non-letter characters get the left-to-right brightness wave.</p>
+                    </div>
+
                     <!-- Themes -->
                     <div class="space-y-3">
                         <label class="text-xs theme-text-sec uppercase tracking-wider">Themes</label>
@@ -443,6 +449,7 @@
             wrapperStacks: [],
             wordEmphasis: [],
             sentenceEffectEnabled: true,
+            waveThreshold: 3,
             sentencePoofTimeout: null
         };
 
@@ -481,6 +488,7 @@
             settingNonAlphaSlowdown: document.getElementById('setting-nonalpha-slowdown'),
             settingFontSize: document.getElementById('setting-font-size'),
             settingSentenceEffect: document.getElementById('setting-sentence-effect'),
+            settingWaveThreshold: document.getElementById('setting-wave-threshold'),
             orpContainer: document.querySelector('.orp-container'),
             bookmarkBtn: document.getElementById('bookmark-btn'),
             bookmarkToast: document.getElementById('bookmark-toast'),
@@ -497,6 +505,7 @@
             const savedNonAlphaSlowdown = localStorage.getItem('rvsp_nonalpha_slowdown');
             const savedFontSize = localStorage.getItem('rvsp_font_size_scale');
             const savedSentenceEffect = localStorage.getItem('rvsp_sentence_effect_enabled');
+            const savedWaveThreshold = localStorage.getItem('rvsp_wave_threshold');
 
             if (savedWpm) {
                 state.wpm = parseInt(savedWpm);
@@ -514,6 +523,10 @@
             if (savedSentenceEffect !== null) {
                 state.sentenceEffectEnabled = savedSentenceEffect === 'true';
                 els.settingSentenceEffect.checked = state.sentenceEffectEnabled;
+            }
+            if (savedWaveThreshold !== null) {
+                state.waveThreshold = parseInt(savedWaveThreshold);
+                els.settingWaveThreshold.value = savedWaveThreshold;
             }
             if (savedTheme && themes[savedTheme]) applyTheme(savedTheme);
             if (savedFont && fonts[savedFont]) applyFont(savedFont);
@@ -791,6 +804,12 @@
             state.sentenceEffectEnabled = els.settingSentenceEffect.checked;
             localStorage.setItem('rvsp_sentence_effect_enabled', state.sentenceEffectEnabled);
 
+            const newWaveThreshold = parseInt(els.settingWaveThreshold.value);
+            if (newWaveThreshold >= 1) {
+                state.waveThreshold = newWaveThreshold;
+                localStorage.setItem('rvsp_wave_threshold', newWaveThreshold);
+            }
+
             localStorage.setItem('rvsp_theme', state.currentTheme);
             localStorage.setItem('rvsp_font', state.currentFont);
             toggleSettings();
@@ -1066,14 +1085,14 @@
             return ch;
         }
 
-        // For jargon-heavy words (3+ non-letter characters), rebuilds the
+        // For jargon-heavy words (state.waveThreshold+ non-letter characters), rebuilds the
         // already-rendered word as per-character spans so a brightness
         // "wave" can sweep left to right in sync with the word's actual
         // delay: it traverses the whole word over the first 95% of delayMs,
         // then leaves the word displaying plainly for the last 5%.
         function triggerWordWave(word, delayMs) {
             const nonAlphaCount = (word.match(/[^A-Za-z]/g) || []).length;
-            if (nonAlphaCount < 3) return;
+            if (nonAlphaCount < state.waveThreshold) return;
 
             const pivotIndex = getPivotIndex(word);
             const leftText = word.substring(0, pivotIndex);
