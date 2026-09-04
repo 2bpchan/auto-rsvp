@@ -326,7 +326,7 @@
                     <div class="space-y-2">
                         <label class="text-xs theme-text-sec uppercase tracking-wider">Slowdown per Non-Letter Character (%)</label>
                         <input type="number" id="setting-nonalpha-slowdown" class="w-full theme-bg border theme-border rounded p-2 theme-text-main focus:border-[var(--text-main)] outline-none" value="50" min="0" max="500">
-                        <p class="text-[10px] theme-text-sec">Extra display time per character that isn't A-Z, so symbol-heavy words like file paths get more time than a word with just one hyphen.</p>
+                        <p class="text-[10px] theme-text-sec">Extra display time per character that isn't A-Z (capped at 5), so symbol-heavy words like file paths get more time than a word with just one hyphen.</p>
                     </div>
 
                     <div class="space-y-2">
@@ -408,6 +408,7 @@
         };
 
         const MIN_WORD_SCALE = 0.4;
+        const MAX_NONALPHA_SLOWDOWN_CHARS = 5;
         const ORP_PIVOT_FRACTION = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--orp-pivot-position')) / 100;
 
         const els = {
@@ -778,6 +779,10 @@
                 const kept = [];
 
                 word.split('').forEach(ch => {
+                    // Asterisks are pure visual clutter (markdown emphasis,
+                    // etc) - just delete them, don't track or count them.
+                    if (ch === '*') return;
+
                     const type = WRAPPER_TYPES.find(t => t.open === ch || t.close === ch);
                     if (!type) { kept.push(ch); return; }
 
@@ -880,6 +885,25 @@
             }
         }
 
+        // Per-word display delay, shared by tick() (to actually pace playback)
+        // and updateProgress() (to estimate time remaining), so the two never
+        // drift out of sync with each other.
+        function computeWordDelay(word) {
+            let delay = 60000 / state.wpm;
+            if (/[.,;!?]$/.test(word)) delay *= 1.5;
+            if (word.length > 10) delay *= 1.2;
+            // Each non-letter character (hyphens, slashes, digits, etc.) adds
+            // another slowdown tier, so jargon-heavy words like file paths
+            // get progressively more time than a word with just one symbol.
+            // Capped so a long numerical ID doesn't drag on forever.
+            const nonAlphaCount = Math.min(
+                (word.match(/[^A-Za-z]/g) || []).length,
+                MAX_NONALPHA_SLOWDOWN_CHARS
+            );
+            if (nonAlphaCount > 0) delay *= (1 + (nonAlphaCount * state.nonAlphaSlowdown) / 100);
+            return delay;
+        }
+
         function tick() {
             if (state.currentIndex >= state.words.length) {
                 pause();
@@ -892,14 +916,7 @@
             renderWord(currentWord);
             updateProgress();
 
-            let delay = 60000 / state.wpm;
-            if (/[.,;!?]$/.test(currentWord)) delay *= 1.5;
-            if (currentWord.length > 10) delay *= 1.2;
-            // Each non-letter character (hyphens, slashes, digits, etc.) adds
-            // another slowdown tier, so jargon-heavy words like file paths
-            // get progressively more time than a word with just one symbol.
-            const nonAlphaCount = (currentWord.match(/[^A-Za-z]/g) || []).length;
-            if (nonAlphaCount > 0) delay *= (1 + (nonAlphaCount * state.nonAlphaSlowdown) / 100);
+            const delay = computeWordDelay(currentWord);
 
             state.currentIndex++;
 
@@ -999,10 +1016,14 @@
             const percent = (state.currentIndex / state.words.length) * 100;
             els.progressBar.style.width = `${percent}%`;
             els.progressPercent.textContent = `${Math.floor(percent)}%`;
-            
-            const wordsLeft = state.words.length - state.currentIndex;
-            const minutesLeft = Math.floor(wordsLeft / state.wpm);
-            const secondsLeft = Math.floor((wordsLeft % state.wpm) / (state.wpm / 60));
+
+            let msLeft = 0;
+            for (let i = state.currentIndex; i < state.words.length; i++) {
+                msLeft += computeWordDelay(state.words[i]);
+            }
+            const secondsLeftTotal = Math.floor(msLeft / 1000);
+            const minutesLeft = Math.floor(secondsLeftTotal / 60);
+            const secondsLeft = secondsLeftTotal % 60;
             els.progressTime.textContent = `-${minutesLeft}:${secondsLeft.toString().padStart(2, '0')}`;
         }
 
