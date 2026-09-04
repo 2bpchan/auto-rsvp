@@ -139,8 +139,8 @@
            JS to track the actual (auto-fit-scaled) word position. */
         .sentence-poof {
             position: absolute;
-            width: 48px;
-            height: 48px;
+            width: 96px;
+            height: 96px;
             display: none;
             pointer-events: none;
             z-index: 30;
@@ -1075,13 +1075,23 @@
         function triggerSentencePoof() {
             if (!state.sentenceEffectEnabled) return;
 
-            void els.wordRight.offsetWidth; // force layout so the rect below reflects the current (possibly auto-fit-scaled) position
-            const wordRect = els.wordRight.getBoundingClientRect();
-            const stageRect = els.readerStage.getBoundingClientRect();
-            const size = els.sentencePoof.offsetWidth || 48;
+            // word-right is a wide, left-aligned box (it spans the rest of the
+            // pivot split), so its own bounding rect ends far past the actual
+            // rendered text - append a zero-width marker after the real text
+            // and measure THAT instead. An element (not a Range) is required
+            // here so the result correctly reflects the auto-fit-scale
+            // transform on .orp-container for long words.
+            const marker = document.createElement('span');
+            els.wordRight.appendChild(marker);
+            void els.wordRight.offsetWidth; // force layout so the marker's rect reflects the current (possibly scaled) position
+            const markerRect = marker.getBoundingClientRect();
+            els.wordRight.removeChild(marker);
 
-            els.sentencePoof.style.left = `${wordRect.right - stageRect.left + 6}px`;
-            els.sentencePoof.style.top = `${wordRect.top - stageRect.top + (wordRect.height - size) / 2}px`;
+            const stageRect = els.readerStage.getBoundingClientRect();
+            const size = els.sentencePoof.offsetWidth || 96;
+
+            els.sentencePoof.style.left = `${markerRect.right - stageRect.left + 6}px`;
+            els.sentencePoof.style.top = `${markerRect.top - stageRect.top + (markerRect.height - size) / 2}px`;
             els.sentencePoof.style.display = 'block';
             // Reassign the src to restart the gif from its first frame each
             // time (a plain reference isn't enough - the browser just keeps
