@@ -107,18 +107,21 @@
             position: relative;
             white-space: nowrap;
             transform-origin: var(--orp-pivot-position) center;
-            /* Base sizes match the old text-4xl/sm:text-6xl/md:text-7xl/lg:text-8xl
-               Tailwind classes, scaled by the user's Word Size setting. */
-            font-size: calc(2.25rem * var(--word-font-scale));
+            /* Base sizes are half the old text-4xl/sm:text-6xl/md:text-7xl/
+               lg:text-8xl Tailwind values - what used to render at a Word
+               Size of 50% is now what 100% renders, since that was the size
+               people actually wanted as the default. Scaled by the user's
+               Word Size setting on top of that. */
+            font-size: calc(1.125rem * var(--word-font-scale));
         }
         @media (min-width: 640px) {
-            .orp-container { font-size: calc(3.75rem * var(--word-font-scale)); }
+            .orp-container { font-size: calc(1.875rem * var(--word-font-scale)); }
         }
         @media (min-width: 768px) {
-            .orp-container { font-size: calc(4.5rem * var(--word-font-scale)); }
+            .orp-container { font-size: calc(2.25rem * var(--word-font-scale)); }
         }
         @media (min-width: 1024px) {
-            .orp-container { font-size: calc(6rem * var(--word-font-scale)); }
+            .orp-container { font-size: calc(3rem * var(--word-font-scale)); }
         }
 
         .orp-left { text-align: right; width: var(--orp-pivot-position); flex-shrink: 0; padding-right: 2px; color: var(--text-secondary); }
@@ -159,7 +162,7 @@
             top: 50%;
             transform: translateY(-50%);
             font-weight: 700;
-            font-size: calc(3.5rem * var(--word-font-scale));
+            font-size: calc(1.75rem * var(--word-font-scale));
             letter-spacing: 0.15em;
             white-space: nowrap;
             user-select: none;
@@ -398,7 +401,7 @@
 
                     <div class="space-y-2">
                         <label class="text-xs theme-text-sec uppercase tracking-wider">Word Size (%)</label>
-                        <input type="number" id="setting-font-size" class="w-full theme-bg border theme-border rounded p-2 theme-text-main focus:border-[var(--text-main)] outline-none" value="100" min="10" max="200" step="10">
+                        <input type="number" id="setting-font-size" class="w-full theme-bg border theme-border rounded p-2 theme-text-main focus:border-[var(--text-main)] outline-none" value="100" min="20" max="400" step="20">
                     </div>
 
                     <div class="flex items-center justify-between">
@@ -830,7 +833,7 @@
             }
 
             const newFontSize = parseInt(els.settingFontSize.value);
-            if (newFontSize >= 10 && newFontSize <= 200) {
+            if (newFontSize >= 20 && newFontSize <= 400) {
                 state.fontSizeScale = newFontSize;
                 localStorage.setItem('rvsp_font_size_scale', newFontSize);
                 document.documentElement.style.setProperty('--word-font-scale', newFontSize / 100);
