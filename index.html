@@ -92,7 +92,16 @@
         .orp-container {
             display: flex;
             align-items: baseline;
-            justify-content: center;
+            /* NOT center: orp-left + orp-right already sum to 100% width, so
+               the row always overflows by exactly the pivot's own width.
+               justify-content:center would split that overflow evenly across
+               both sides, meaning the pivot's left edge (and thus the fixed
+               focus point everything else is anchored to) shifts sideways
+               depending on how wide the current pivot LETTER happens to be
+               ("W" vs "i") - a few pixels of jitter every single word.
+               flex-start pins orp-left's right edge (= the pivot's left
+               edge) at a constant position regardless of pivot width. */
+            justify-content: flex-start;
             font-weight: 600;
             user-select: none;
             position: relative;
@@ -112,9 +121,34 @@
             .orp-container { font-size: calc(6rem * var(--word-font-scale)); }
         }
 
-        .orp-left { text-align: right; width: var(--orp-pivot-position); padding-right: 2px; color: var(--text-secondary); }
+        .orp-left { text-align: right; width: var(--orp-pivot-position); flex-shrink: 0; padding-right: 2px; color: var(--text-secondary); }
         .orp-pivot { color: var(--focus-point); width: auto; text-align: center; transform: scale(1.05); flex-shrink: 0; }
-        .orp-right { text-align: left; width: calc(100% - var(--orp-pivot-position)); padding-left: 2px; color: var(--text-secondary); }
+        .orp-right { text-align: left; width: calc(100% - var(--orp-pivot-position)); flex-shrink: 0; padding-left: 2px; color: var(--text-secondary); }
+
+        /* Freestanding markers pointing at the fixed pivot position, so it's
+           easy to see at a glance that the focus letter never actually
+           moves. Positioned absolutely (out of the flex flow entirely) at
+           the same --orp-pivot-position used for transform-origin, sized in
+           em so they scale with the Word Size setting. */
+        .pivot-arrow {
+            position: absolute;
+            left: var(--orp-pivot-position);
+            /* Scale (not font-size) shrinks the glyph, so the top/bottom em
+               offsets below still resolve against the full inherited word
+               font-size for proper clearance above/below the tall letters -
+               mixing a smaller font-size in here would make em offsets
+               resolve against THAT smaller size instead, undershooting the
+               clearance needed (the exact bug that sank the first attempt
+               at this kind of marker). */
+            transform: translateX(-50%) scale(0.3);
+            color: var(--text-secondary);
+            opacity: 0.4;
+            line-height: 1;
+            pointer-events: none;
+            user-select: none;
+        }
+        .pivot-arrow-top { top: -0.85em; }
+        .pivot-arrow-bottom { bottom: -0.85em; }
 
         /* Wrapper Margins - shows enclosing punctuation (parens, brackets,
            etc) the current word is nested inside, outermost pair furthest
@@ -273,6 +307,8 @@
                     <span class="orp-left" id="word-left">Wait</span>
                     <span class="orp-pivot" id="word-pivot">i</span>
                     <span class="orp-right" id="word-right">ng...</span>
+                    <span class="pivot-arrow pivot-arrow-top" aria-hidden="true">&#9662;</span>
+                    <span class="pivot-arrow pivot-arrow-bottom" aria-hidden="true">&#9652;</span>
                 </div>
 
                 <!-- Sentence-end "poof" effect -->
